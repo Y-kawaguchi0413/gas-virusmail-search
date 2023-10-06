@@ -1,0 +1,531 @@
+<script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
+
+<script>
+
+  // ページ読み込み後の処理をハンドル
+  google.script.run.withSuccessHandler(initializeVue).constructor();
+
+  let localStrageFlag = true;
+
+  let vue = new Vue({
+    vuetify: new Vuetify(),
+    el: "#app",
+    data: () => ({
+
+      // 警告文言
+      alertMessage: `週報データ出力時、月を跨ぐ場合は日付部分（～に届きました。）を手動で修正してください。\r\n`,
+
+      // navi test
+      group: null,
+
+      // datatable ※sortはhtml側で指定(date)
+      headers: [
+        {
+          text: '日付',
+          //align: 'start',
+          //sortable: false,
+          value: 'date',
+          key: 'date',
+        },
+        { text: '件名', value: 'subject'},
+        { text: '添付ファイル', value: 'attachedFile' },
+        { text: 'ウイルス名', value: 'virusName' },
+        { text: 'メッセージID', value: 'messageId' },
+      ],
+      desserts: [],
+      startDay: "",
+      endDay: "",
+      btnDisable: true,
+      isDisplay: false,
+
+      // vuetify
+      drawer: null,
+      date: "",
+      startMenu: false,
+      endMenu: false,
+
+      // snackbar param
+      snackbar: false,
+      snackbarMessage: "",
+      snackbarTimeout: 3000,
+      snackbarColor: "",
+      snackbarTop: true,
+
+      // loading param
+      isLoading: true,
+      dialog: false,
+      dialogMessage: ""
+    }),
+    watch: {
+      group () {
+        this.drawer = false
+      },
+    },
+    components: {},
+    computed: {},
+    methods: {
+
+      // 検索
+      searchVirus(start, end) {
+        let startDay = start.split("-");
+        let endDay = end.split("-");
+
+        if (startDay == "" || endDay == "") {
+          this.activeSnackbar("開始日または終了日が空白", "error");
+        } else if (startDay > endDay) {
+          this.activeSnackbar("終了日が開始日より後", "error");
+        } else if (startDay[0] != endDay[0]) {
+          this.activeSnackbar("年を跨ぐことはできません", 'error');
+        } else {
+          showDisplay(false);
+          this.dialog = true;
+
+          this.dialogMessage = "集計中...";
+          setLocalStorage("searchDate",{start:rep(start, "-", "/"), end:rep(end, "-", "/")});
+
+          // event handler
+          google.script.run
+            .withSuccessHandler(success)
+            .withFailureHandler(failure)
+            .searchVirus(startDay, endDay);
+        }
+      },
+
+      // 週報取得
+      weeklyReport() {
+        try {
+          dataString = createWeeklyReportData(
+            JSON.parse(localStorage.getItem("spreadSheetData"))
+            );
+          weeklyReportDownload(dataString);
+        } catch (error) {
+          this.activeSnackbar(error, "error");
+        }
+      },
+
+      // 月報
+      monthlyReport() {
+        try {
+          let startDayArr = vue.startDay.split("-");
+          let endDayArr = vue.endDay.split("-");
+          dataString = createMonthlyReportData(
+            JSON.parse(localStorage.getItem("spreadSheetData"))
+            );
+          monthlyReportDownload(dataString);
+        } catch (error) {
+          this.activeSnackbar(error, "error");
+        }
+      },
+
+      /**
+       * スナックバー処理
+       * @param String message  : 表示文字列
+       * @param String colorKey : 文字列([primary] or [success] or [error])
+       * @void                  : colorKeyによってスナックバーの処理を実行
+       */
+      activeSnackbar(message, colorKey) {
+
+        const snackbarColorList = [
+          {key:"primary", color:"primary", timeout:3000},
+          {key:"success", color:"deep-purple accent-4", timeout:3000},
+          {key:"error", color:"red accent-2", timeout:10000},
+        ]
+
+        const snackbarData = colorKey => {
+          const result = snackbarColorList.find(list => list.key === colorKey);
+          return result;
+        }
+
+        const data = snackbarData(colorKey);
+
+        this.snackbarMessage = message;
+        this.snackbarColor = data.color;
+        this.snackbarTimeout = data.timeout;
+        this.snackbar = true;
+
+      },
+
+      /**
+       * 旧スナックバー処理
+       * 後ほど削除
+       * activeSnackbar -> activeSnackbarOld
+       */
+      activeSnackbarOld(message, colorKey) {
+
+        let snackbarColor = "";
+        switch (colorKey) {
+          case "primary":
+            snackbarColor = "primary";
+            snackbarTimeout = 3000;
+            break;
+          case "success":
+            snackbarColor = "deep-purple accent-4";
+            snackbarTimeout = 3000;
+            break;
+          case "error":
+            snackbarColor = "red accent-2";
+            snackbarTimeout = 10000;
+            break;
+        }
+        this.snackbarMessage = message;
+        this.snackbarColor = snackbarColor;
+        this.snackbarTimeout = snackbarTimeout;
+        this.snackbar = true;
+      },
+    },
+  }); // end Vue
+
+  /**
+   * ファイル読み込み後の処理
+   */
+  function initializeVue() {
+    // ローカルストレージが使用可能か確認
+    if (window.localStorage) {
+      localStorage.clear();
+      console.log('localstorage delete');
+    } else {
+      vue.activeSnackbar("ローカルストレージが使用出来ないためテキスト出力は出来ません。", "error");
+      console.log("localstorage disable");
+    }
+  }
+
+  /**
+   * 集計完了後の処理
+   * @param Object result : searchContactMail()からの戻り値
+   * @void                : ローカルストレージに値を保存
+   */
+  function success(result) {
+    vue.dialog = false;
+    vue.activeSnackbar("集計が終了しました", "success");
+    isDisable(false);
+    console.log("success");
+    vue.desserts = [];
+
+    let data = []
+    Object.keys(result["view"]).forEach((num) => {
+      vue.desserts.push(result["view"][num]);
+    })
+
+    if (localStrageFlag === true) {
+      setLocalStorage("spreadSheetData", result);
+    }
+  }
+
+  /**
+   * 集計失敗時の処理
+   * @param String message : エラー内容
+   * @void                 : スナックバーにエラー内容を表示
+   */
+  function failure(message) {
+    vue.dialog = false;
+    vue.activeSnackbar(`集計に失敗しました。\n${message}`, "error");
+    isDisable(true);
+    console.log(`failure.\r\n${message}`);
+  }
+
+  /**
+   * ローカルストレージから値を取得
+   * @param  String key : 識別値
+   * @return Object     : ローカルストレージに保存した値を返す(JSON)
+   */
+  function getLocalStorage(key) {
+    return JSON.parse(localStorage.getItem(key));
+  }
+
+  /**
+   * ローカルストレージに値を保存
+   * @param String key  : 識別値
+   * @param Object data : searchContactMail()から取得したデータ
+   * @void
+   */
+  function setLocalStorage(key, data) {
+    localStorage.setItem(key, JSON.stringify(data, undefined, 1));
+  }
+
+  // 週報
+  /**
+   * 週報データ加工・取得
+   * @param  Object json : ローカルストレージから取得した値
+   * @return String      : 文字列に加工して返す
+   */
+  function createWeeklyReportData(json) {
+
+    let num = 1;
+    let searchDate = getLocalStorage("searchDate");
+    let result = `ウイルスメール検知 ${searchDate["start"]}～${searchDate["end"]}\r\n\r\n`;
+
+    Object.keys(json["text"]).forEach((virusName) => {
+
+      const data = json["text"][virusName];
+
+      let subject = getTopData(data.subject);
+      let attachedFile = getTopData(data.attachedFile);
+
+      let day = "";
+      for (const days of data.days) {
+        day += `${parseInt(days)}日、`;
+      }
+      day = day.slice(0, -1);
+
+      result += `(${num})ウイルス名「${virusName}」 ${data.count}件\r\n`
+        + `${day}に届きました。\r\n`
+        + `件名は、\r\n${subject}となっており、\r\n${attachedFile}ファイルが添付されています。\r\n\r\n`;
+
+      // ウイルスメールの詳細情報　※現在は使用していないためコメントアウト
+      //result += getBodyData(sort(data.data));
+      result += `-----\r\n`;
+      num++;
+
+    }); // end forEach
+
+    return result;
+  }
+
+  /**
+   * 月報データ加工・取得
+   * @param  Object json : ローカルストレージから取得した値
+   * @return String      : 文字列に加工して返す
+   */
+  function createMonthlyReportData(json) {
+
+    let results = [];
+
+    let jsonData = json["view"].sort(function (a, b) {
+      return (a.date < b.date) ? -1 : 1;  //昇順
+    });
+
+    let arr = [];
+    let countKey = "";
+    let count = 0;
+    for (data of jsonData) {
+
+      let date = data["date"].split("\t");
+
+      if (countKey == "") {
+        countKey = date[0];
+      }
+
+      if (countKey != date[0]) {
+        count = 0;
+        countKey = date[0];
+      }
+
+      count++;
+
+      arr[date[0]] = count;
+    }
+
+    // 0件の日付データ生成(arr[yyyy/mm/dd] = count) ※0件の日付が不要な場合は加工前のarrを使用
+    let virusCountData = createDate(arr);
+
+    let searchDate = getLocalStorage("searchDate");
+    let result = `ウイルスメール月報データ ${searchDate["start"]}～${searchDate["end"]}\r\n\r\n`
+              + "==========\r\n[日付順]\r\n\r\n";
+
+    for (const [key, value] of Object.entries(virusCountData)) {
+      result += `${key}\t${value}\r\n`;
+    }
+
+    result += "==========\r\n";
+
+    results["dayCount"] = virusCountData;
+
+    // 初期化
+    arr = [];
+    Object.keys(json["text"]).forEach((virusName) => {
+      arr.push({
+        virusName: virusName,
+        count: json["text"][virusName]["count"]
+      });
+    }); // end forEach
+
+    // sort
+    results["virusCount"] = arr.sort(function(a, b) {
+      return (a.count > b.count) ? -1 : 1;  //オブジェクトの降順ソート
+    });
+
+    result += "[名前順]\r\n\r\n";
+    Object.keys(results["virusCount"]).forEach((key) => {
+      result += `${results["virusCount"][key]["virusName"]}\t${results["virusCount"][key]["count"]}\r\n`
+    });
+
+    result += "==========";
+
+    return result;
+  }
+
+  /**
+   * 件数データ加工 (0件の日付と件数のある日付を結合)
+   * @param  Object virusCountData : 件数のある日付データのオブジェクト
+   * @return Object result         : 0件の日付と件数のある日付データを結合したオブジェクト
+   */
+  function createDate(virusCountData) {
+
+    // ストレージに保存した開始日時と終了日時から日付を取得
+    let searchDate = getLocalStorage("searchDate");
+    let startDay = searchDate['start'].split('/');
+    let endDay = searchDate['end'].split('/');
+    let year = startDay[0];
+
+    result = [];
+
+    // 月でループ
+    for (let month = Number(startDay[1]); month <= Number(endDay[1]); month++) {
+
+      const date = new Date(year, month, 0);
+      const lastDay = date.getDate();
+
+      // 日でループ
+      for (day = 1; day <= lastDay; day++) {
+        const key = `${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}`;
+        if (key in virusCountData) {
+          result[key] = virusCountData[key];
+        } else {
+          result[key] = 0;
+        }
+      } // end for (day)
+
+    } // end for (month)
+
+    return result;
+  }
+
+  /**
+   * 指定文字列の変換処理(pattern を repString に変換)
+   * @param  String substr    : 変換前の文字列
+   * @param  String pattern   : 変換される文字
+   * @param  String repString : 変換する文字
+   * @param  String option    : RegExp()のオプション(対象文字列)
+   * @return String           : 変換後の文字列
+   */
+  function rep(substr, pattern, repString, option = "g") {
+    return substr.replace(new RegExp(pattern, option), repString);
+  }
+
+  /**
+   * 件名と添付ファイルのデータを週報用に加工
+   * @param  Array  data   :  加工前データ
+   * @return String result :  文字列で返す
+   */
+  function getTopData(data) {
+    let result = "";
+    for (let d of data) {
+      result += `「${d}」\r\n`;
+    }
+    return result;
+  }
+
+  /**
+   * 詳細データを週報用に加工
+   * @param Array data     : 加工前データ
+   * @return String result : 文字列で返す
+   */
+  function getBodyData(data) {
+    let result = "";
+    let count = 1;
+    for (let d of data) {
+      result += `${d[0]}\t\t${count}\r\n`
+        + `${d[1]}\r\n${d[2]}\r\n${d[3]}\r\n${d[4]}\r\n\r\n`;
+
+      count++;
+    }
+    result += `-----\r\n`;
+    return result;
+  }
+
+  /**
+   * ダイアログ切り替え処理
+   * @void
+   */
+  function isDialog(flag) {
+    vue.dialog = flag;
+  }
+
+  /**
+   * ボタンの有無判定
+   * @param Boolean flag : true or false
+   * @void
+   */
+  function isDisable(flag) {
+    if (localStrageFlag === true) {
+      vue.btnDisable = flag;
+    }
+  }
+
+  /**
+   * ダイアログのcloseボタン表示・非表示処理
+   * @param Boolean flag : true or false
+   * @void
+   */
+  function showDisplay(flag) {
+    vue.isDisplay = flag;
+  }
+
+  /**
+   * ソート処理(連想配列)
+   * @param  Object val : array.key.value
+   * @return Object     : ソートした配列を返す
+   */
+  function sort(val) {
+    val.sort(function (a, b) {
+      if (a[0] < b[0]) return -1;
+      if (a[0] > b[0]) return 1;
+      return 0;
+    });
+    return valMsgs;
+  }
+
+  /**
+   * ダウンロード処理(リンク作成・ダウンロード) ※chrome系のみ
+   * @param String data  : ダウンロードするデータ
+   * @param String title : タイトル
+   * @void
+   */
+  function download(data, title) {
+    let blob = new Blob([ data ], { 'type' : 'text/csv' });
+    let downloadLink = document.createElement('a');
+    downloadLink.download = `${title}.txt`;
+    downloadLink.href = URL.createObjectURL(blob);
+    downloadLink.dataset.downloadurl = ['text/plain', downloadLink.download, downloadLink.href].join(':');
+    downloadLink.click();
+    downloadLink.remove();
+    //URL.revokeObjectURL(downloadLink.href);
+  }
+
+  /** ------ **/
+
+  /**
+   * 週報ダウンロード処理
+   * @void
+   */
+  function weeklyReportDownload(dataString) {
+    console.log('weeklyReport');
+    let localStorageData = getLocalStorage("searchDate");
+    let pattern = "\/";
+    let repString = "-";
+
+    let startDay = rep(localStorageData["start"], pattern, repString);
+    let endDay = rep(localStorageData["end"], pattern, repString);
+    const title = `ウイルスメール集計_${startDay}～${endDay}`;
+
+    download(dataString, title)
+  }
+  /**
+   * 月報ダウンロード処理
+   * @void
+   */
+  function monthlyReportDownload(dataString) {
+    console.log('monthlyReport');
+    let localStorageData = getLocalStorage("searchDate");
+    let pattern = "\/";
+    let repString = "-";
+
+    let startDay = rep(localStorageData["start"], pattern, repString);
+    let endDay = rep(localStorageData["end"], pattern, repString);
+    const title = `ウイルスメール月報データ_${startDay}～${endDay}`;
+
+    download(dataString, title);
+  }
+
+</script>

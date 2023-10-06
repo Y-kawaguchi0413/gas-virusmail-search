@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <base target="_top" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui"
+    />
+    <meta name="referrer" content="origin">
+    <?!= HtmlService.createHtmlOutputFromFile('css').getContent(); ?>
+
+  </head>
+
+  <body>
+    <v-app id="app" v-cloak>
+      <v-app-bar app>
+        <v-app-bar-nav-icon @click="drawer = !drawer"></v-app-bar-nav-icon>
+        <v-toolbar-title>ウイルスメール検索・集計</v-toolbar-title>
+      </v-app-bar>
+      <v-navigation-drawer v-model="drawer" fixed temporary>
+        <v-list nav dense>
+          <v-list-item-group
+            v-model="group"
+            active-class="deep-purple--text text--accent-4"
+          >
+            <v-list-item>
+              <v-list-item-title @click=""></v-list-item-title>
+            </v-list-item>
+          </v-list-item-group>
+        </v-list>
+      </v-navigation-drawer>
+
+      <v-main class="lighten-2">
+        <v-container>
+
+          <v-alert color="pink accent-3" icon="mdi-alert" border="bottom" transition="fade-transition" outlined prominent dismissible elevation="3">
+            <v-subheader style="color:#f50057 !important;"><strong>注意事項</strong></v-subheader>
+            <div style="white-space:pre-wrap; word-wrap:break-word;">{{alertMessage}}</div>
+          </v-alert>
+
+          <v-row>
+            <v-col class="" cols="12">
+              <v-form ref="form" lazy-validation>
+                <v-menu
+                  ref="startMenu"
+                  v-model="startMenu"
+                  :close-on-content-click="false"
+                  :return-value.sync="startDay"
+                  transition="scale-transition"
+                  offset-y
+                  min-width="auto"
+                >
+                  <template v-slot:activator="{ on, attrs }">
+                    <v-text-field
+                      v-model="startDay"
+                      label="開始日"
+                      prepend-icon="mdi-calendar"
+                      readonly
+                      v-bind="attrs"
+                      v-on="on"
+                    ></v-text-field>
+                  </template>
+                  <v-date-picker
+                    locale="jp-ja"
+                    v-model="startDay"
+                    no-title
+                    scrollable
+                    :day-format="date => new Date(date).getDate()"
+                    @input="startMenu = false, $refs.startMenu.save(startDay)"
+                    >
+                  </v-date-picker>
+                </v-menu>
+
+                <v-menu
+                  ref="endMenu"
+                  v-model="endMenu"
+                  :close-on-content-click="false"
+                  :return-value.sync="endDay"
+                  transition="scale-transition"
+                  offset-y
+                  min-width="auto"
+                >
+                  <template v-slot:activator="{ on, attrs }">
+                    <v-text-field
+                      v-model="endDay"
+                      label="終了日"
+                      prepend-icon="mdi-calendar"
+                      readonly
+                      v-bind="attrs"
+                      v-on="on"
+                    ></v-text-field>
+                  </template>
+                  <v-date-picker
+                    v-model="endDay"
+                    locale="jp-ja"
+                    no-title
+                    scrollable
+                    :day-format="date => new Date(date).getDate()"
+                    @input="endMenu = false, $refs.endMenu.save(endDay)"
+                    >
+                  </v-date-picker>
+                </v-menu>
+
+                <v-btn
+                  color="success"
+                  class="mr-4"
+                  @click="searchVirus(startDay, endDay);"
+                >
+                  <v-icon small>mdi-database-search</v-icon>
+                  集計
+                </v-btn>
+
+                <v-btn
+                  color="success"
+                  class="mr-4"
+                  v-bind:disabled="btnDisable"
+                  @click="weeklyReport();"
+                >
+                  <v-icon small>mdi-arrow-collapse-down</v-icon>
+                  週報用データ
+                </v-btn>
+
+                <v-btn
+                  color="success"
+                  class="mr-4"
+                  v-bind:disabled="btnDisable"
+                  @click="monthlyReport();"
+                >
+                  <v-icon small>mdi-arrow-collapse-down</v-icon>
+                  月報用データ
+                </v-btn>
+
+              </v-form>
+            </v-col>
+
+            <!-- dataTable -->
+            <v-col class="" cols="12">
+              <template>
+                <v-data-table
+                  :headers="headers"
+                  :items="desserts"
+                  :items-per-page="5"
+                  :sort-by="['date']"
+                  class="elevation-1"
+                  no-data-text="データがありません。"
+                ></v-data-table>
+              </template>
+            </v-col>
+          </v-row>
+        </v-container>
+      </v-main>
+
+      <v-footer app>
+        <!-- -->
+      </v-footer>
+
+      <!-- dialog -->
+      <template>
+        <v-dialog
+          v-model="dialog"
+          persistent
+          width="300"
+        >
+          <v-card height="190" class="text-center">
+            <v-progress-circular
+              :indeterminate="isLoading"
+              :size="100"
+              color="primary"
+              class="mt-4 "
+            >
+              {{ dialogMessage }}
+            </v-progress-circular>
+            <v-card-actions>
+              <v-btn class="ml-auto my-2" color="primary" @click="dialog=false" v-show="isDisplay">close</v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
+      </template>
+
+      <!-- snackbar -->
+      <template>
+        <v-snackbar
+          v-model="snackbar"
+          :timeout="snackbarTimeout"
+          :color="snackbarColor"
+          :top="snackbarTop"
+        >
+          {{ snackbarMessage }}
+          <template v-slot:action="{ attrs }">
+            <v-btn
+              color="deep-purple lighten-5"
+              text
+              v-bind="attrs"
+              @click="snackbar = false"
+            >
+              Close
+            </v-btn>
+          </template>
+        </v-snackbar>
+      </template>
+
+    </v-app>
+    <?!= HtmlService.createHtmlOutputFromFile('js').getContent(); ?>
+
+  </body>
+</html>
