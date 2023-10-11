@@ -7,6 +7,7 @@ class Config {
 
     Object.defineProperties(this, {
       SHEET_NAME: {value: 'テーブル'},
+      LOG_SHEET_NAME: {value: 'アクセスログ'},
       LABEL: {value: 'label:ウイルスメール検知'},
       TITLE: {value: [["日付", "件名", "メッセージID", "添付ファイル", "ウイルス名"]]},
       MONTH_ENGLISH_LIST: {value: {

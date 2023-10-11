@@ -8,6 +8,12 @@
 
   let localStrageFlag = true;
 
+  ;(async function() {
+    const url = 'https://ipinfo.io?callback'
+    response = await fetch(url).then((response) => {return response.json()})
+    google.script.run.accessLog({'ip':response.ip.toString(), 'region':response.region.toString()})
+  })()
+
   let vue = new Vue({
     vuetify: new Vuetify(),
     el: "#app",
@@ -68,6 +74,7 @@
 
       // 検索
       searchVirus(start, end) {
+
         let startDay = start.split("-");
         let endDay = end.split("-");
 
