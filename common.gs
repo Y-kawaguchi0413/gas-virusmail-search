@@ -82,7 +82,7 @@ class Common extends Config {
    */
   dateFormat(defaultDate) {
     let dateAry = defaultDate.split(/\s+/);
-    let date = this.monthEnglishList[dateAry[1]].toString().padStart(2, '0')
+    let date = this.MONTH_ENGLISH_LIST[dateAry[1]].toString().padStart(2, '0')
     return `${dateAry[3]}-${date}-${dateAry[2]}\t${dateAry[4]}`;
   }
 
@@ -144,17 +144,17 @@ class Common extends Config {
    */
   replace(reps, key) {
 
-    if (!this.checkKeyExists(this.replaceKey, key)) {
+    if (!this.checkKeyExists(this.REPLACE_KEY, key)) {
       throw new Error("not replaceKey");
     }
 
     let result = "";
 
-    for (let i = 0; i < this.replaceKey[key].length; i++) {
+    for (let i = 0; i < this.REPLACE_KEY[key].length; i++) {
       if (i > 0) {
         reps = result;
       }
-      result = reps.replace(this.replaceKey[key][i], "").trimStart().trimEnd();
+      result = reps.replace(this.REPLACE_KEY[key][i], "").trimStart().trimEnd();
     }
 
     return result;
@@ -224,9 +224,9 @@ class Common extends Config {
     dateAry.shift();
     dateAry.pop();
     dateAry[0] = dateAry[0].replace(",", "");
-    let date = this.monthEnglishList[dateAry[2]].toString().padStart(2, '0')
+    let date = this.MONTH_ENGLISH_LIST[dateAry[2]].toString().padStart(2, '0')
     return `${dateAry[3]}-${date}-${dateAry[1]}\t${dateAry[4]}`;
-    //return `${this.monthEnglishList[dateAry[2]]}/${dateAry[1]}\t${dateAry[4]}`;
+    //return `${this.MONTH_ENGLISH_LIST[dateAry[2]]}/${dateAry[1]}\t${dateAry[4]}`;
   }
   */
 

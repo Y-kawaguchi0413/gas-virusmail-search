@@ -29,7 +29,7 @@ function searchContactMail(startDate = Array(), endDate = Array()) {
   let query = common.getQuery(startUnixtime, endUnixtime);
 
   /* Gmailから特定条件のスレッドを検索しメールを取り出す */
-  let myThreads = GmailApp.search(query + " " + common.label);
+  let myThreads = GmailApp.search(query + " " + common.LABEL);
   let myMsgs = GmailApp.getMessagesForThreads(myThreads); //二次元配列
 
   let valMsgs = [];
