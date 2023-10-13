@@ -16,7 +16,7 @@
     <v-app id="app" v-cloak>
       <v-app-bar app>
         <v-app-bar-nav-icon @click="drawer = !drawer"></v-app-bar-nav-icon>
-        <v-toolbar-title>ウイルスメール検索・集計</v-toolbar-title>
+        <v-toolbar-title><?= title ?></v-toolbar-title>
       </v-app-bar>
       <v-navigation-drawer v-model="drawer" fixed temporary>
         <v-list nav dense>
@@ -35,8 +35,8 @@
         <v-container>
 
           <v-alert color="pink accent-3" icon="mdi-alert" border="bottom" transition="fade-transition" outlined prominent dismissible elevation="3">
-            <v-subheader style="color:#f50057 !important;"><strong>注意事項</strong></v-subheader>
-            <div style="white-space:pre-wrap; word-wrap:break-word;">{{alertMessage}}</div>
+            <v-subheader style="color:#f50057 !important;"><strong>注意事項<?= notes ?></strong></v-subheader>
+            <div style="white-space:pre-wrap; word-wrap:break-word;">{{alertMessage}}<?= msg ?></div>
           </v-alert>
 
           <v-row>
@@ -64,6 +64,8 @@
                   <v-date-picker
                     locale="jp-ja"
                     v-model="startDay"
+                    min="<?=min ?>"
+                    max="<?=max ?>"
                     no-title
                     scrollable
                     :day-format="date => new Date(date).getDate()"
@@ -94,6 +96,8 @@
                   <v-date-picker
                     v-model="endDay"
                     locale="jp-ja"
+                    min="<?=min ?>"
+                    max="<?=max ?>"
                     no-title
                     scrollable
                     :day-format="date => new Date(date).getDate()"

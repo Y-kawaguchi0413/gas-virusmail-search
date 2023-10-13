@@ -6,6 +6,13 @@ class Config {
   constructor() {
 
     Object.defineProperties(this, {
+      DEMO: {value: true},
+      DEMO_TITLE: {value: 'DEMO PAGE'},
+      DEMO_NOTES: {value: '※ これはデモページです'},
+      DEMO_SHEET: {value: 'demo'},
+      DEMO_DATE_MIN: {value: '2023-01-01'},
+      DEMO_DATE_MAX: {value: '2023-12-31'},
+      WEB_TITLE: {value: 'ウイルスメール検索・集計'},
       SHEET_NAME: {value: 'テーブル'},
       LOG_SHEET_NAME: {value: 'アクセスログ'},
       LABEL: {value: 'label:ウイルスメール検知'},

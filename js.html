@@ -8,11 +8,19 @@
 
   let localStrageFlag = true;
 
+  /*
   ;(async function() {
     const url = 'https://ipinfo.io?callback'
     response = await fetch(url).then((response) => {return response.json()})
     google.script.run.accessLog({'ip':response.ip.toString(), 'region':response.region.toString()})
   })()
+  */
+  async function log() {
+    const url = 'https://ipinfo.io?callback'
+    response = await fetch(url).then((response) => {return response.json()})
+    google.script.run.accessLog({'ip':response.ip.toString(), 'region':response.region.toString()})
+  }
+  log();
 
   let vue = new Vue({
     vuetify: new Vuetify(),
@@ -91,11 +99,11 @@
           this.dialogMessage = "集計中...";
           setLocalStorage("searchDate",{start:rep(start, "-", "/"), end:rep(end, "-", "/")});
 
-          // event handler
           google.script.run
             .withSuccessHandler(success)
             .withFailureHandler(failure)
-            .searchVirus(startDay, endDay);
+            //.searchVirus(startDay, endDay);
+            .search(startDay, endDay);
         }
       },
 
