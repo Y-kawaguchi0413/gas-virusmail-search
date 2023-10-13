@@ -7,10 +7,13 @@ function doGet() {
 }
 
 function constructor() {
-  console.log("main.js constructor");
   return true;
 }
 
 function searchVirus(startDay, endDay) {
   return searchContactMail(startDay, endDay);
+}
+
+function accessLog(access_data = {'ip': '', 'region': ''}) {
+  return accessLog(access_data);
 }

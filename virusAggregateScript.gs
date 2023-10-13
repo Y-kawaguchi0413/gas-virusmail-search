@@ -33,7 +33,7 @@ function localSearchContactMail(startDate = Array(), endDate = Array()) {
 
   /* Gmailから特定条件のスレッドを検索しメールを取り出す */
   //let myThreads = GmailApp.search(query + " " + common.label, 0, 30);
-  let myThreads = GmailApp.search(query + " " + common.label);
+  let myThreads = GmailApp.search(query + " " + common.LABEL);
   let myMsgs = GmailApp.getMessagesForThreads(myThreads); //二次元配列
 
   let valMsgs = [];
