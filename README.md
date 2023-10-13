@@ -1,7 +1,7 @@
 # gas-virusmail-search
 ウイルスメール集計
 
-デモページ [Google Apps Script ※Googleアカウント必須](https://script.google.com/macros/s/AKfycbw0aJHJFEd5s6effsl9czf4vbV711MR--DFTTrmTyCcEiZ03KIW3RxpVTAcbOxbvXnx/exec)
+デモページ ![Google Apps Script ※Googleアカウント必須](https://script.google.com/macros/s/AKfycbw0aJHJFEd5s6effsl9czf4vbV711MR--DFTTrmTyCcEiZ03KIW3RxpVTAcbOxbvXnx/exec)
 
 ```
 .
